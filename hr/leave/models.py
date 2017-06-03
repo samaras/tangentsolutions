@@ -1,4 +1,7 @@
 import datetime
+import dateutil.relativedelta
+
+import math
 
 from django.db import models
 from django.utils import timezone
@@ -6,15 +9,6 @@ from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 
 # Create your models here.
-
-NEW = 0
-APPROVED = 1
-DECLINED = 2
-STATUS_CHOICES = (
-	(NEW, 'New'),
-	(DECLINED, 'Declined'),
-	(APPROVED, 'Approved'),
-)
 
 class TimeStamped(models.Model):
 	created_on = models.DateTimeField("Created on", auto_now_add=True)
@@ -26,7 +20,7 @@ class TimeStamped(models.Model):
 class Employee(models.Model):
 	""" Employee """
 	user = models.OneToOneField(User, related_name="employee", verbose_name=_("employee"), on_delete=models.CASCADE)
-	start_date = models.DateField(blank=True)
+	start_date = models.DateTimeField(blank=True)
 	leave_remaining = models.IntegerField(default=0, blank=True)
 	
 	class Meta:
@@ -35,24 +29,36 @@ class Employee(models.Model):
 	def calculate_leave():
 		""" Calculates the amount leave employee accrued per year """
 		leave_per_month = 18 / 12
-		current_month = timezone.now().month
+		today = timezone.now().date()
 
 		# Check if employee is on probation
-		probation = current_month - datetime.timedelta(months=3)
+		probation = today - datetime.relativedelta(months=3)
 		if self.start_date >= probation:
 			return 0
 		else:
-			return 
+			# calculate leave this year
+			r = relativedelta.relativedelta(today, self.start_date)
+			leave = r.months * leave_per_month
+			return math.floor(leave)
 
 	def __str__(self):
 		return "%s %s" % (self.user.first_name, self.user.last_name)
 
 class Leave(TimeStamped):
 	""" Leave """
+	NEW = 1
+	APPROVED = 2
+	DECLINED = 3
+	STATUS_CHOICES = (
+		(NEW, 'New'),
+		(DECLINED, 'Declined'),
+		(APPROVED, 'Approved'),
+	)
+
 	start_date = models.DateField()
 	end_date = models.DateField()
-	days_of_leave = models.IntegerField()
-	status = models.IntegerField(choices=STATUS_CHOICES)
+	leave_days = models.IntegerField()
+	status = models.IntegerField(choices=STATUS_CHOICES, default=NEW)
 	employee = models.ForeignKey(Employee, verbose_name=_("Employee"))
 
 	class Meta:
