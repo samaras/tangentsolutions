@@ -9,6 +9,7 @@ from leave.models import Employee
 
 class EmployeeInline(admin.StackedInline):
 	model = Employee
+	can_delete = False
 	verbose_name_plural = _('employee')
 
 class UserAdmin(BaseUserAdmin):
